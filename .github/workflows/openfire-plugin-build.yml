@@ -19,12 +19,18 @@ jobs:
       # Checkout Repo
       - uses: actions/checkout@v3
 
+      - id: get-name
+        name: Fetch package name
+        uses: mikefarah/yq@master
+        with:
+          cmd: yq -p=xml --xml-skip-proc-inst '.project.artifactId' pom.xml
+
       # Create a variable with this plugin's name
       - id: get-id
         name: Compute needed variables
         run: |
           set -x
-          id=$(mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
+          id=${{ steps.get-name.outputs.result }}
           echo "id=$id" >> $GITHUB_OUTPUT
           echo "id is '$id'"
           tag=$(echo ${{ github.ref }} | cut -d '/' -f3)
