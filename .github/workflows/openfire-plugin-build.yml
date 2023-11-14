@@ -18,20 +18,19 @@ jobs:
     steps:
       # Checkout Repo
       - uses: actions/checkout@v3
-      
-      - name: Fetch package name
-        id: get-name
-        uses: mavrosxristoforos/get-xml-info@1.2.0
+
+      - id: get-name
+        name: Fetch package name
+        uses: mikefarah/yq@master
         with:
-          xml-file: 'pom.xml'
-          xpath: '/project/artifactId'
+          cmd: yq -p=xml --xml-skip-proc-inst '.project.artifactId' pom.xml
 
       # Create a variable with this plugin's name
       - id: get-id
         name: Compute needed variables
         run: |
           set -x
-          id=${{ steps.get-name.outputs.info }}
+          id=${{ steps.get-name.outputs.result }}
           echo "id=$id" >> $GITHUB_OUTPUT
           echo "id is '$id'"
           tag=$(echo ${{ github.ref }} | cut -d '/' -f3)
