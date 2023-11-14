@@ -70,7 +70,7 @@ jobs:
             MODERN_JAVA_ONLY=false
             echo "modernJavaOnly=${{ toJSON(false) }}" >> $GITHUB_OUTPUT
           fi
-          if [ ${{ matrix.java }} == "8" ] && [ MODERN_JAVA_ONLY ]; then
+          if [ ${{ matrix.java }} == "8" ] && [ $MODERN_JAVA_ONLY ]; then
               echo "thisJavaEnabled=${{ toJSON(false) }}" >> $GITHUB_OUTPUT
           else
             echo "thisJavaEnabled=${{ toJSON(true) }}" >> $GITHUB_OUTPUT
