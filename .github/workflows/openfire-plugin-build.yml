@@ -50,6 +50,7 @@ jobs:
         with:
           xml-file: 'plugin.xml'
           xpath: '//minJavaVersion'
+          zero-nodes-action: 'warn'
 
       - name: Read plugin Openfire versions
         id: get-openfire-version-from-plugin-xml
@@ -57,6 +58,7 @@ jobs:
         with:
           xml-file: 'plugin.xml'
           xpath: '//minServerVersion'
+          zero-nodes-action: 'warn'
 
       # TODO: Fix for versions 4.9+ and for Java >11, when those are closer
       - name: Set Java Targets
