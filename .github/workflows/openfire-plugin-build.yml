@@ -43,11 +43,20 @@ jobs:
           echo "rel_id=$rel_id" >> $GITHUB_OUTPUT
           echo "rel_id is '$rel_id'"
 
+      - name: Locate plugin.xml
+        id: locate-plugin-xml
+        run: |
+          if [ -f "src/plugin.xml" ]; then
+            echo "plugin_xml=src/plugin.xml" >> $GITHUB_OUTPUT
+          else
+            echo "plugin_xml=plugin.xml" >> $GITHUB_OUTPUT
+          fi
+
       - name: Read plugin Java versions
         id: get-java-version-from-plugin-xml
         uses: mavrosxristoforos/get-xml-info@1.2.0
         with:
-          xml-file: 'plugin.xml'
+          xml-file: ${{ steps.locate-plugin-xml.outputs.plugin_xml }}
           xpath: '//minJavaVersion'
           zero-nodes-action: 'warn'
 
@@ -55,7 +64,7 @@ jobs:
         id: get-openfire-version-from-plugin-xml
         uses: mavrosxristoforos/get-xml-info@1.2.0
         with:
-          xml-file: 'plugin.xml'
+          xml-file: ${{ steps.locate-plugin-xml.outputs.plugin_xml }}
           xpath: '//minServerVersion'
           zero-nodes-action: 'warn'
 
