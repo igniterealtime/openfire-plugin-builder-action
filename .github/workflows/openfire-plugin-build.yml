@@ -46,10 +46,14 @@ jobs:
       - name: Locate plugin.xml
         id: locate-plugin-xml
         run: |
+          set -e
           if [ -f "src/plugin.xml" ]; then
             echo "plugin_xml=src/plugin.xml" >> $GITHUB_OUTPUT
-          else
+          elif [ -f "plugin.xml" ]; then
             echo "plugin_xml=plugin.xml" >> $GITHUB_OUTPUT
+          else
+            echo "FATAL: Could not locate plugin.xml"
+            exit 1
           fi
 
       - name: Read plugin Java versions
