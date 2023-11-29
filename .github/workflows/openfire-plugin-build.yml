@@ -21,7 +21,7 @@ jobs:
 
       - id: get-name
         name: Fetch package name
-        uses: mikefarah/yq@master
+        uses: mikefarah/yq@v4.40.3
         with:
           cmd: yq -p=xml --xml-skip-proc-inst '.project.artifactId' pom.xml
 
@@ -117,6 +117,26 @@ jobs:
         if: fromJSON(steps.set-java-targets.outputs.thisJavaEnabled)
         run:  mvn -B package
 
+      - name: Find custom artifact output
+        id: get-custom-artifact-output
+        uses: mikefarah/yq@v4.40.3
+        with:
+          cmd: yq -p=xml --xml-skip-proc-inst '.project.build.plugins.plugin[] | select(.artifactId == "maven-assembly-plugin") | .executions.execution | . |= ([] + .) | .[] | select(.id == "make-assembly") | .configuration.finalName' pom.xml
+
+      - name: Set artifact name
+        id: set-asset
+        run: |
+          if [ ${{ steps.get-custom-artifact-output.outputs.result }} == "" ]; then
+            # Use the default
+            echo "asset=${{ steps.get-id.outputs.id }}-openfire-plugin-assembly.jar" >> $GITHUB_OUTPUT
+          elif [ ${{ steps.get-custom-artifact-output.outputs.result }} == "${project.artifactId}" ]; then
+            # Use the artifactId we set way back at the beginning
+            echo "asset=${{ steps.get-id.outputs.id }}.jar" >> $GITHUB_OUTPUT
+          else
+            # Use whatever we found in the property
+            echo "asset=${{ steps.get-custom-artifact-output.outputs.result }}.jar" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Conditionally Deploy to Igniterealtime Archiva
         id: deploy
         if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/') ) && ( ( matrix.java == '8' && fromJSON(steps.set-java-targets.outputs.thisJavaEnabled)) || ( matrix.java == '11' && fromJSON(steps.set-java-targets.outputs.modernJavaOnly) )) }}
@@ -132,6 +152,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: https://uploads.github.com/repos/${{ github.repository }}/releases/${{ steps.get-id.outputs.rel_id }}/assets?name=${{ steps.get-id.outputs.id }}.jar
-          asset_path: target/${{ steps.get-id.outputs.id }}-openfire-plugin-assembly.jar
+          asset_path: target/${{ steps.set-asset.outputs.asset }}
           asset_name: ${{ steps.get-id.outputs.id }}.jar
           asset_content_type: application/java-archive
