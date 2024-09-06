@@ -10,6 +10,10 @@ on:
 
 jobs:
   build:
+    defaults:
+      run:
+        # Ensures environment gets sourced and we exit with errors
+        shell: bash -l -e {0}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -46,7 +50,6 @@ jobs:
       - name: Locate plugin.xml
         id: locate-plugin-xml
         run: |
-          set -e
           if [ -f "src/plugin.xml" ]; then
             echo "plugin_xml=src/plugin.xml" >> $GITHUB_OUTPUT
           elif [ -f "plugin.xml" ]; then
