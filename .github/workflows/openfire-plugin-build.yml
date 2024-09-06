@@ -77,7 +77,7 @@ jobs:
         id: set-java-targets
         run: |
           set -e
-          if [ ${{steps.get-java-version-from-plugin-xml.outputs.info}} == "11" ] || [[ ${{steps.get-openfire-version-from-plugin-xml.outputs.info}} =~ ^4\.8.*$ ]]; then
+          if [ "${{steps.get-java-version-from-plugin-xml.outputs.info}}" == "11" ] || [[ "${{steps.get-openfire-version-from-plugin-xml.outputs.info}}" =~ ^4\.8.*$ ]]; then
             MODERN_JAVA_ONLY=true
             echo "modernJavaOnly=${{ toJSON(true) }}" >> $GITHUB_OUTPUT
           else
