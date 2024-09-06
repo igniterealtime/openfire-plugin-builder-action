@@ -71,11 +71,11 @@ jobs:
           xpath: '//minServerVersion'
           zero-nodes-action: 'warn'
 
-      # TODO: Fix for versions 4.9+ and for Java >11, when those are closer
+      # TODO: Fix for Openfire 4.9+
       - name: Set Java Targets
         id: set-java-targets
         run: |
-          if [ "${{steps.get-java-version-from-plugin-xml.outputs.info}}" == "11" ] || [[ "${{steps.get-openfire-version-from-plugin-xml.outputs.info}}" =~ ^4\.8.*$ ]]; then
+          if [ "${{steps.get-java-version-from-plugin-xml.outputs.info}}" >= "11" ] || [[ "${{steps.get-openfire-version-from-plugin-xml.outputs.info}}" =~ ^4\.8.*$ ]]; then
             MODERN_JAVA_ONLY=true
             echo "modernJavaOnly=${{ toJSON(true) }}" >> $GITHUB_OUTPUT
           else
@@ -84,6 +84,10 @@ jobs:
           fi
           if [ ${{ matrix.java }} == "8" ] && [ "$MODERN_JAVA_ONLY" == "true" ]; then
               echo "thisJavaEnabled=${{ toJSON(false) }}" >> $GITHUB_OUTPUT
+              if [ "${{steps.get-openfire-version-from-plugin-xml.outputs.info}}" =~ ^4\.8.*$ ]; then
+                  echo "Java 8 + Openfire 4.8.0+ is not supported, remove 8 from CI Matrix"
+                  exit 3
+              fi
           else
             echo "thisJavaEnabled=${{ toJSON(true) }}" >> $GITHUB_OUTPUT
           fi
