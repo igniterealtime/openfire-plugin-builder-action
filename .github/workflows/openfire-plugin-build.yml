@@ -9,39 +9,14 @@ on:
         required: true
 
 jobs:
-  build:
+  # Sets output variables for the matrix of java versions to be used in the build job
+  select_java:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        java: [ "8", "11", "17" ]
-
+    outputs:
+      java: ${{ steps.set-java-targets.outputs.java_matrix }}
     steps:
       # Checkout Repo
       - uses: actions/checkout@v3
-
-      - id: get-name
-        name: Fetch package name
-        uses: mikefarah/yq@master
-        with:
-          cmd: yq -p=xml --xml-skip-proc-inst '.project.artifactId' pom.xml
-
-      # Create a variable with this plugin's name
-      - id: get-id
-        name: Compute needed variables
-        run: |
-          set -x -e
-          id=${{ steps.get-name.outputs.result }}
-          echo "id=$id" >> $GITHUB_OUTPUT
-          echo "id is '$id'"
-          tag=$(echo ${{ github.ref }} | cut -d '/' -f3)
-          echo "tag=$tag" >> $GITHUB_OUTPUT
-          echo "tag is '$tag'"
-          version=$(echo ${{ github.ref }} | cut -d '/' -f3 | cut -c 2-)
-          echo "version=$version" >> $GITHUB_OUTPUT
-          echo "version is '$version'"
-          rel_id=$(curl -sL --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/${{github.repository}}/releases | jq -r --arg TAG "$tag" '.[] | select(.tag_name==$TAG) | .id')
-          echo "rel_id=$rel_id" >> $GITHUB_OUTPUT
-          echo "rel_id is '$rel_id'"
 
       - name: Locate plugin.xml
         id: locate-plugin-xml
@@ -72,35 +47,59 @@ jobs:
           xpath: '//minServerVersion'
           zero-nodes-action: 'warn'
 
-      # TODO: Fix for versions 4.9+ and for Java >11, when those are closer
       - name: Set Java Targets
         id: set-java-targets
         run: |
           set -e
           if [ "${{steps.get-java-version-from-plugin-xml.outputs.info}}" == "11" ] || [[ "${{steps.get-openfire-version-from-plugin-xml.outputs.info}}" =~ ^4\.8.*$ ]]; then
-            MODERN_JAVA_ONLY=true
-            echo "modernJavaOnly=${{ toJSON(true) }}" >> $GITHUB_OUTPUT
+            echo "java_matrix=[11,17]" >> $GITHUB_OUTPUT
           else
-            MODERN_JAVA_ONLY=false
-            echo "modernJavaOnly=${{ toJSON(false) }}" >> $GITHUB_OUTPUT
+            echo "java_matrix=[8,11,17]" >> $GITHUB_OUTPUT
           fi
-          if [ ${{ matrix.java }} == "8" ] && [ "$MODERN_JAVA_ONLY" == "true" ]; then
-              echo "thisJavaEnabled=${{ toJSON(false) }}" >> $GITHUB_OUTPUT
-          else
-            echo "thisJavaEnabled=${{ toJSON(true) }}" >> $GITHUB_OUTPUT
-          fi
-          
+
+  build:
+    runs-on: ubuntu-latest
+    needs: select_java
+    strategy:
+      matrix:
+        java: ${{fromJson(needs.select_java.outputs.java)}}
+
+    steps:
+      # Checkout Repo
+      - uses: actions/checkout@v3
+
+      - id: get-name
+        name: Fetch package name
+        uses: mikefarah/yq@master
+        with:
+          cmd: yq -p=xml --xml-skip-proc-inst '.project.artifactId' pom.xml
+
+      # Create a variable with this plugin's name
+      - id: get-id
+        name: Compute needed variables
+        run: |
+          set -x -e
+          id=${{ steps.get-name.outputs.result }}
+          echo "id=$id" >> $GITHUB_OUTPUT
+          echo "id is '$id'"
+          tag=$(echo ${{ github.ref }} | cut -d '/' -f3)
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+          echo "tag is '$tag'"
+          version=$(echo ${{ github.ref }} | cut -d '/' -f3 | cut -c 2-)
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "version is '$version'"
+          rel_id=$(curl -sL --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/${{github.repository}}/releases | jq -r --arg TAG "$tag" '.[] | select(.tag_name==$TAG) | .id')
+          echo "rel_id=$rel_id" >> $GITHUB_OUTPUT
+          echo "rel_id is '$rel_id'"
 
       - name: Setup JDK ${{ matrix.java }}
         uses: actions/setup-java@v3
-        if: fromJSON(steps.set-java-targets.outputs.thisJavaEnabled)
         with:
           java-version: ${{ matrix.java }}
           distribution: temurin
 
       - name: Cache Maven repository
         uses: actions/cache@v3
-        if: fromJSON(steps.set-java-targets.outputs.thisJavaEnabled)
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-java${{ matrix.java }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -109,21 +108,19 @@ jobs:
             ${{ runner.os }}-
 
       - name: Igniterealtime CI Tooling
-        if: fromJSON(steps.set-java-targets.outputs.thisJavaEnabled)
         run: |
           set -e
           git clone --depth 1 https://github.com/igniterealtime/ci-tooling.git target/ci-tooling
           cp target/ci-tooling/maven-settings-for-openfire-plugins.xml $HOME/.m2/settings.xml
 
       - name: Build with Maven
-        if: fromJSON(steps.set-java-targets.outputs.thisJavaEnabled)
         run: |
           set -e
           mvn -B package
 
       - name: Conditionally Deploy to Igniterealtime Archiva
         id: deploy
-        if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/') ) && ( ( matrix.java == '8' && fromJSON(steps.set-java-targets.outputs.thisJavaEnabled)) || ( matrix.java == '11' && fromJSON(steps.set-java-targets.outputs.modernJavaOnly) )) }}
+        if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/')) && ( matrix.java == '8' || (matrix.java == '11' && needs.select_java.outputs.java == '[11,17]') ) }}
         run: |
           set -e
           mvn -B deploy -Dmaven.resolver.transport=wagon --settings target/ci-tooling/maven-settings-for-openfire-plugins.xml
@@ -133,7 +130,7 @@ jobs:
 
       - name: Conditionally Push Artifact to Github Release
         uses: actions/upload-release-asset@v1
-        if: ${{ contains(github.repository, 'igniterealtime/') && github.event_name == 'push' && contains(github.ref, 'refs/tags/') && ( ( matrix.java == '8' && fromJSON(steps.set-java-targets.outputs.thisJavaEnabled)) || ( matrix.java == '11' && fromJSON(steps.set-java-targets.outputs.modernJavaOnly) )) }}
+        if: ${{ contains(github.repository, 'igniterealtime/') && github.event_name == 'push' && contains(github.ref, 'refs/tags/') && ( matrix.java == '8' || (matrix.java == '11' && needs.select_java.outputs.java == '[11,17]') ) }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
