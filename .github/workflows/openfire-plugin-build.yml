@@ -16,7 +16,7 @@ jobs:
       java: ${{ steps.set-java-targets.outputs.java_matrix }}
     steps:
       # Checkout Repo
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Locate plugin.xml
         id: locate-plugin-xml
@@ -33,7 +33,7 @@ jobs:
 
       - name: Read plugin Java versions
         id: get-java-version-from-plugin-xml
-        uses: mavrosxristoforos/get-xml-info@1.2.0
+        uses: mavrosxristoforos/get-xml-info@2.0
         with:
           xml-file: ${{ steps.locate-plugin-xml.outputs.plugin_xml }}
           xpath: '//minJavaVersion'
@@ -41,7 +41,7 @@ jobs:
 
       - name: Read plugin Openfire versions
         id: get-openfire-version-from-plugin-xml
-        uses: mavrosxristoforos/get-xml-info@1.2.0
+        uses: mavrosxristoforos/get-xml-info@2.0
         with:
           xml-file: ${{ steps.locate-plugin-xml.outputs.plugin_xml }}
           xpath: '//minServerVersion'
@@ -66,11 +66,11 @@ jobs:
 
     steps:
       # Checkout Repo
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - id: get-name
         name: Fetch package name
-        uses: mikefarah/yq@master
+        uses: mikefarah/yq@f654fbf4598c06e18b11a4bd504eba16459be80c # master as of 2024-10-05, includes bugfixes not currently in a release
         with:
           cmd: yq -p=xml --xml-skip-proc-inst '.project.artifactId' pom.xml
 
@@ -93,13 +93,13 @@ jobs:
           echo "rel_id is '$rel_id'"
 
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: ${{ matrix.java }}
           distribution: temurin
 
       - name: Cache Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-java${{ matrix.java }}-maven-${{ hashFiles('**/pom.xml') }}
