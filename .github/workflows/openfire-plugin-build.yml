@@ -122,7 +122,7 @@ jobs:
 
       - name: Stash the built artifacts
         uses: actions/upload-artifact@v4
-        if: ${{ matrix.java == '8' || (matrix.java == '11' && needs.select_java.outputs.java == '[11,17]') || (matrix.java == '17' && needs.select_java.outputs.java == '[17,21]') }}
+        if: ${{ fromJson(needs.select_java.outputs.java)[0] == matrix.java }}
         with:
           name: ${{ steps.get-id.outputs.id }}
           path: target/${{ steps.get-id.outputs.id }}-openfire-plugin-assembly.jar
@@ -130,7 +130,7 @@ jobs:
 
       - name: Conditionally Deploy to Igniterealtime Archiva
         id: deploy
-        if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/')) && ( matrix.java == '8' || (matrix.java == '11' && needs.select_java.outputs.java == '[11,17]') || (matrix.java == '17' && needs.select_java.outputs.java == '[17,21]') ) }}
+        if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/')) && fromJson(needs.select_java.outputs.java)[0] == matrix.java }}
         run: |
           set -e
           mvn -B deploy -Dmaven.resolver.transport=wagon --settings target/ci-tooling/maven-settings-for-openfire-plugins.xml
@@ -140,7 +140,7 @@ jobs:
 
       - name: Conditionally Push Artifact to Github Release
         uses: actions/upload-release-asset@v1
-        if: ${{ contains(github.repository, 'igniterealtime/') && github.event_name == 'push' && contains(github.ref, 'refs/tags/') && ( matrix.java == '8' || (matrix.java == '11' && needs.select_java.outputs.java == '[11,17]') || (matrix.java == '17' && needs.select_java.outputs.java == '[17,21]') ) }}
+        if: ${{ contains(github.repository, 'igniterealtime/') && github.event_name == 'push' && contains(github.ref, 'refs/tags/') && fromJson(needs.select_java.outputs.java)[0] == matrix.java }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
