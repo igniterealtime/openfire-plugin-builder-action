@@ -16,7 +16,7 @@ jobs:
       java: ${{ steps.set-java-targets.outputs.java_matrix }}
     steps:
       # Checkout Repo
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Locate plugin.xml
         id: locate-plugin-xml
@@ -68,11 +68,11 @@ jobs:
 
     steps:
       # Checkout Repo
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - id: get-name
         name: Fetch package name
-        uses: mikefarah/yq@f654fbf4598c06e18b11a4bd504eba16459be80c # master as of 2024-10-05, includes bugfixes not currently in a release
+        uses: mikefarah/yq@d2d657eacc2cbba1dbfc29afd11198a855cc4db5 # master as of 2024-10-05, includes bugfixes not currently in a release
         with:
           cmd: yq -p=xml --xml-skip-proc-inst '.project.artifactId' pom.xml
 
@@ -95,13 +95,13 @@ jobs:
           echo "rel_id is '$rel_id'"
 
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: ${{ matrix.java }}
           distribution: temurin
 
       - name: Cache Maven repository
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-java${{ matrix.java }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -121,7 +121,7 @@ jobs:
           mvn -B package
 
       - name: Stash the built artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ fromJson(needs.select_java.outputs.java)[0] == matrix.java }}
         with:
           name: ${{ steps.get-id.outputs.id }}
