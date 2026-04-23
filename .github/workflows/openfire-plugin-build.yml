@@ -51,13 +51,34 @@ jobs:
         id: set-java-targets
         run: |
           set -e
-          if [ "${{steps.get-java-version-from-plugin-xml.outputs.info}}" == "17" ] || [[ "${{steps.get-openfire-version-from-plugin-xml.outputs.info}}" =~ ^4\.10\..*$ ]] || [[ "${{steps.get-openfire-version-from-plugin-xml.outputs.info}}" =~ ^5\..*\..*$ ]]; then
-            echo "java_matrix=[17,21]" >> $GITHUB_OUTPUT
-          elif [ "${{steps.get-java-version-from-plugin-xml.outputs.info}}" == "11" ] || [[ "${{steps.get-openfire-version-from-plugin-xml.outputs.info}}" =~ ^4\.8\..*$ ]] || [[ "${{steps.get-openfire-version-from-plugin-xml.outputs.info}}" =~ ^4\.9\..*$ ]]; then
-            echo "java_matrix=[11,17]" >> $GITHUB_OUTPUT
+          JAVA_MIN="${{steps.get-java-version-from-plugin-xml.outputs.info}}"
+          OPENFIRE_VERSION="${{steps.get-openfire-version-from-plugin-xml.outputs.info}}"
+          
+          # Determine minimum Java implied by the Openfire version
+          if [[ "$OPENFIRE_VERSION" =~ ^(5\.|4\.10\.) ]]; then
+            OPENFIRE_JAVA_MIN=17
+          elif [[ "$OPENFIRE_VERSION" =~ ^4\.(8|9)\. ]]; then
+            OPENFIRE_JAVA_MIN=11
           else
-            echo "java_matrix=[8,11,17]" >> $GITHUB_OUTPUT
+            OPENFIRE_JAVA_MIN=8
           fi
+          
+          # Plugin-declared minimum takes precedence if it's higher
+          if [[ -n "$JAVA_MIN" ]] && (( JAVA_MIN > OPENFIRE_JAVA_MIN )); then
+            EFFECTIVE_MIN=$JAVA_MIN
+          else
+            EFFECTIVE_MIN=$OPENFIRE_JAVA_MIN
+          fi
+          
+          # Build matrix: all LTS versions >= effective minimum
+          # To add a new LTS version in future, just append it here
+          LTS_VERSIONS=(8 11 17 21 25)
+          MATRIX=()
+          for v in "${LTS_VERSIONS[@]}"; do
+            (( v >= EFFECTIVE_MIN )) && MATRIX+=("$v")
+          done
+          
+          echo "java_matrix=[$(IFS=,; echo "${MATRIX[*]}")]" >> $GITHUB_OUTPUT
 
   build:
     runs-on: ubuntu-latest
